@@ -140,29 +140,43 @@ function out = filter(imageFile, name, layer, folder)
 % dim:          the current color dimension of the image (for storage
 %               purposes)
 % folder:       name of the folder where additional image can be stored
-
+    
+    % measure image dimensions and convert it to double
     [len, ~] = size(imageFile);
     imageFile = im2double(imageFile);
     
+    % initialise a 3x3 gaussian convolution kernel
     g = fspecial('gaussian', [3 3], 5);
+    
+    % calculate al edges so we can transform the 3x3 kernel to an lenxlen
+    % kernel that is identical when we fft it
     c = g(2:3,2:3);
     ur = g(1, 2:3);
     ul = g(1,1);
     l = g(2:3,1);
     
+    %rotary transform the kernel so the center lies on the top left and pad
+    %the center bits of the matrix with 0's
     center = zeros(len, len-2-1);
     
+    %left part
     left_center = zeros(len-2-1, 2);
     left = [c;left_center;ur];
     
+    %right part
     right_center = zeros(len-2-1 ,1);
     right = [l; right_center; ul];
     
-    ag = [left center right];
+    %the lenxlen kernel equivalent with the 3x3 kernel
+    kernel = [left center right];
     
+    %apply fft to both matrices
     image_fft = fft2(imageFile);
-    g_fft = fft2(ag);
+    g_fft = fft2(kernel);
   
+    %calculate the convolution of the kernel and the image. Because we are
+    %in the fft domain this is equivalent with the point-wise
+    %multiplication of both matrices.
     out = uint8(255*ifft2(image_fft.*g_fft));
     
     % Convert dimension to string
@@ -172,6 +186,7 @@ function out = filter(imageFile, name, layer, folder)
     name = strsplit(name, '.');
     name = name{1};
     
+    %write out the fft spectrums before and after convolution
     imwrite(uint8(20*log(abs(fftshift(image_fft)))), [folder 'before/' name dim '.png']);
     imwrite(uint8(20*log(abs(fftshift(image_fft.*g_fft)))), [folder 'after/' name dim '.png']);
 end
